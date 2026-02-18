@@ -1,14 +1,20 @@
 import socket
 import os
+import ssl
+import env
 
 HOST = "0.0.0.0"
-PORT = 73405 # tootoo pls fix
+PORT = 7345 # tootoo pls fix
 
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-sock.bind((HOST, PORT))
-sock.listen()
-sock.settimeout(2) # bastard
+ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+ssl_context.load_cert_chain("ssl/cert.pem", "ssl/key.pem")
+
+raw_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+raw_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+raw_sock.bind((HOST, PORT))
+raw_sock.listen()
+raw_sock.settimeout(2) # bastard
+sock = ssl_context.wrap_socket(raw_sock, server_side=True)
 
 def get_ok_packet():
 	return bytes([0xff, 0x02, 0x00, 0x00]) + b"OK"
@@ -87,12 +93,18 @@ while running:
 	except TimeoutError:
 		seconds_waiting = seconds_waiting + 1
 		continue
+	except:
+		continue
 	try:
 		b = conn.recv(1024)
-		if (len(b) < 4):
+		if (len(b) < 20):
 			conn.sendall(get_error_packet())
 		else:
-			handle_request(b, conn)
+			token = b[:16]
+			packet = b[16:]
+			if token != env.TOKEN:
+				raise Exception("whatever")
+			handle_request(packet, conn)
 	except:
 		conn.sendall(get_error_packet())
 		pass
