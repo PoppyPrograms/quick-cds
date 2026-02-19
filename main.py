@@ -85,6 +85,17 @@ if not data_exists():
 		print("ERROR; HI. DATA DIRECTORY COULD NOT BE CREATED")
 		exit(-1)
 
+def recv_all(packet: bytes, sock):
+	while True:
+		try:
+			p = sock.recv(4096, socket.MSG_DONTWAIT)
+			if p == b"":
+				break
+			packet = packet + p
+		except:
+			return packet # done
+	return packet
+
 running = 1
 seconds_waiting = 0
 while running:
@@ -96,7 +107,8 @@ while running:
 	except:
 		continue
 	try:
-		b = conn.recv(1024)
+		b = conn.recv(4096)
+		b = recv_all(b, conn)
 		if (len(b) < 20):
 			conn.sendall(get_error_packet())
 		else:
